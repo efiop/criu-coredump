@@ -17,9 +17,8 @@ library) and then produce core dump and inspect it via gdb.
 To generate core dump of your application you don't even need
 to be a root, it is enough for you to be the owner of that task.
 For that all you have two choices:
-    1) Use CRIU service running and use RPC[1] or libcriu[2]
-       CRIU binary with suid bit set. It is useful if you want
-       your app to automatically call CRIU.
+    1) Use CRIU service running and use RPC[1] or libcriu[2]. It
+       is useful if you want your app to automatically call CRIU.
     2) Use CRIU binary with suid bit set. 
 
 [1] http://criu.org/RPC
