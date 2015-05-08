@@ -1,0 +1,5 @@
+stats-dump
+*.log
+*.img
+loop
+core.*
