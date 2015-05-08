@@ -1,0 +1,27 @@
+#!/usr/bin/env python2
+
+import criu_coredump
+import argparse
+import os
+
+def main():
+        desc = 'Generate core dumps from criu images'
+        parser = argparse.ArgumentParser(description=desc,
+                        formatter_class=argparse.RawTextHelpFormatter)
+
+	parser.add_argument('-i', '--in', default = '.',
+		help = 'directory where to get images from.')
+	parser.add_argument('-p', '--pid', type = int,
+		help = 'generate core dump of a process identified by PID.'\
+		       'If not specified -- generating for each pid.')
+	parser.add_argument('-o', '--out', default = '.',
+		help = 'directory to write core dump to.')
+
+	opts = vars(parser.parse_args())
+
+	dump = criu_coredump.core_generator()
+	dump.parse_images(os.path.realpath(opts['in']), opts['pid'])
+	dump.write_cores(os.path.realpath(opts['out']), opts['pid'])
+
+if __name__ == '__main__':
+	main()
