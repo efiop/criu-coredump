@@ -121,7 +121,14 @@ class core_generator:
 	"""
 	Generate core dump from criu images.
 	"""
-	coredumps = {} # core_dumps by pid;
+	coredumps	= {} # core_dumps by pid;
+
+	pstree		= {} # process info by pid;
+	cores		= {} # cores by pid;
+	creds		= {} # creds by pid;
+	mms		= {} # mm by pid;
+	reg_files	= None # reg-files;
+	pagemaps	= {} # pagemap by pid;
 
 	def _img_open_and_strip(self, name, single = False, pid = None):
 		"""
@@ -148,19 +155,22 @@ class core_generator:
 		in a tree.
 		"""
 		self._imgs_dir	= imgs_dir
-		self._pstree	= self._img_open_and_strip("pstree")
+		pstree		= self._img_open_and_strip("pstree")
 
-		pids = []
-		if pid == None:
-			# If no pid is specified we will generate core dumps for
-			# each pid in process tree.
-			for p in self._pstree:
-				pids.append(p["pid"])
-		else:
-			pids.append(pid)
+		for p in pstree:
+			pid = p['pid']
 
-		for p in pids:
-			self.coredumps[p] = self._gen_coredump(p)
+			self.pstree[pid]	= p
+			for tid in p['threads']:
+				self.cores[tid]	= self._img_open_and_strip("core", True, tid)
+			self.creds[pid]		= self._img_open_and_strip("creds", True, pid)
+			self.mms[pid]		= self._img_open_and_strip("mm", True, pid)
+			self.pagemaps[pid]	= self._img_open_and_strip("pagemap", False, pid)
+
+		self.reg_files	= self._img_open_and_strip("reg-files", False)
+
+		for pid in self.pstree:
+			self.coredumps[pid] = self._gen_coredump(pid)
 
 
 	def write_coredumps(self, coredumps_dir, pid = None):
@@ -268,9 +278,9 @@ class core_generator:
 		"""
 		Generate NT_PRPSINFO note for process pid.
 		"""
-		pstree	= filter(lambda x: x["pid"] == pid, self._pstree)[0]
-		creds	= self._img_open_and_strip("creds", True, pid)
-		core	= self._img_open_and_strip("core", True, pid)
+		pstree	= self.pstree[pid]
+		creds	= self.creds[pid]
+		core	= self.cores[pid]
 
 		prpsinfo = elf.elf_prpsinfo()
 		ctypes.memset(ctypes.addressof(prpsinfo), 0, ctypes.sizeof(prpsinfo))
@@ -319,9 +329,9 @@ class core_generator:
 		"""
 		Generate NT_PRSTATUS note for thread tid of process pid.
 		"""
-		core	= self._img_open_and_strip("core", True, tid)
+		core	= self.cores[tid]
 		regs	= core["thread_info"]["gpregs"]
-		pstree	= filter(lambda x: x["pid"] == pid, self._pstree)[0]
+		pstree	= self.pstree[pid]
 
 		prstatus = elf.elf_prstatus()
 
@@ -377,7 +387,7 @@ class core_generator:
 		"""
 		Generate NT_FPREGSET note for thread tid of process pid.
 		"""
-		core	= self._img_open_and_strip("core", True, tid)
+		core	= self.cores[tid]
 		regs	= core["thread_info"]["fpregs"]
 
 		fpregset = elf.elf_fpregset_t()
@@ -411,7 +421,7 @@ class core_generator:
 		"""
 		Generate NT_X86_XSTATE note for thread tid of process pid.
 		"""
-		core	= self._img_open_and_strip("core", True, tid)
+		core	= self.cores[tid]
 		fpregs	= core["thread_info"]["fpregs"]
 
 		data = elf.elf_xsave_struct()
@@ -468,7 +478,7 @@ class core_generator:
 		"""
 		Generate NT_AUXV note for thread tid of process pid.
 		"""
-		mm = self._img_open_and_strip("mm", True, pid)
+		mm = self.mms[pid]
 		num_auxv = len(mm["mm_saved_auxv"])/2
 
 		class elf_auxv(ctypes.Structure):
@@ -495,7 +505,7 @@ class core_generator:
 		"""
 		Generate NT_FILE note for process pid.
 		"""
-		mm = self._img_open_and_strip("mm", True, pid)
+		mm = self.mms[pid]
 
 		class mmaped_file_info:
 			start		= None
@@ -513,7 +523,7 @@ class core_generator:
 			size	= vma["end"] - vma["start"]
 			off	= vma["pgoff"]/PAGESIZE
 
-			files	= self._img_open_and_strip("reg-files", False)
+			files	= self.reg_files
 			fname	= filter(lambda x: x["id"] == shmid, files)[0]["name"]
 
 			info = mmaped_file_info()
@@ -589,7 +599,7 @@ class core_generator:
 
 		notes.append(self._gen_prpsinfo(pid))
 
-		threads = filter(lambda x: x["pid"] == pid, self._pstree)[0]["threads"]
+		threads = self.pstree[pid]["threads"]
 
 		# Main thread first
 		notes += self._gen_thread_notes(pid, pid)
@@ -610,7 +620,7 @@ class core_generator:
 		"""
 		Try to find memory page page_no in pages.img image for process pid.
 		"""
-		pagemap = self._img_open_and_strip("pagemap", False, pid)
+		pagemap = self.pagemaps[pid]
 
 		# First entry is pagemap_head, we will need it later to open
 		# proper pages.img.
@@ -628,7 +638,7 @@ class core_generator:
 				continue
 
 			if "in_parent" in m and m["in_parent"] == True:
-				ppid = filter(lambda x: x["pid"] == pid, self._pstree)["ppid"]
+				ppid = self.pstree[pid]["ppid"]
 				return self._get_page(ppid, page_no)
 			else:
 				with open(self._imgs_dir+"/"+"pages-"+str(pages_id)+".img") as f:
@@ -661,7 +671,7 @@ class core_generator:
 			shmid	= vma["shmid"]
 			off	= vma["pgoff"]
 
-			files	= self._img_open_and_strip("reg-files", False)
+			files	= self.reg_files
 			fname	= filter(lambda x: x["id"] == shmid, files)[0]["name"]
 
 			f = open(fname)
@@ -736,7 +746,7 @@ class core_generator:
 		"""
 		Generate full command with arguments.
 		"""
-		mm = self._img_open_and_strip("mm", True, pid)
+		mm = self.mms[pid]
 
 		vma = {}
 		vma["start"]	= mm["mm_arg_start"]
@@ -795,7 +805,7 @@ class core_generator:
 		"""
 		Generate vma contents for core dump for process pid.
 		"""
-		mm = self._img_open_and_strip("mm", True, pid)
+		mm = self.mms[pid]
 
 		class vma_class:
 			data	= None
