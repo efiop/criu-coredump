@@ -121,7 +121,7 @@ class core_generator:
 	"""
 	Generate core dump from criu images.
 	"""
-	cores = {} # core_dumps by pid;
+	coredumps = {} # core_dumps by pid;
 
 	def _img_open_and_strip(self, name, single = False, pid = None):
 		"""
@@ -160,21 +160,21 @@ class core_generator:
 			pids.append(pid)
 
 		for p in pids:
-			self.cores[p] = self._gen_core(p)
+			self.coredumps[p] = self._gen_coredump(p)
 
 
-	def write_cores(self, cores_dir, pid = None):
+	def write_coredumps(self, coredumps_dir, pid = None):
 		"""
 		Write core dumpt to cores_dir directory. Specify pid to choose
 		core dump of only one process.
 		"""
-		for p in self.cores:
+		for p in self.coredumps:
 			if pid and p != pid:
 				continue
-			with open(cores_dir+"/"+"core."+str(p), 'w+') as f:
-				self.cores[p].write(f)
+			with open(coredumps_dir+"/"+"core."+str(p), 'w+') as f:
+				self.coredumps[p].write(f)
 
-	def _gen_core(self, pid):
+	def _gen_coredump(self, pid):
 		"""
 		Generate core dump for pid.
 		"""

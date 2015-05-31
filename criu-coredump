@@ -21,7 +21,7 @@ def main():
 
 	dump = criu_coredump.core_generator()
 	dump.parse_images(os.path.realpath(opts['in']), opts['pid'])
-	dump.write_cores(os.path.realpath(opts['out']), opts['pid'])
+	dump.write_coredumps(os.path.realpath(opts['out']), opts['pid'])
 
 if __name__ == '__main__':
 	main()
