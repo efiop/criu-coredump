@@ -19,9 +19,8 @@ def main():
 
 	opts = vars(parser.parse_args())
 
-	dump = criu_coredump.core_generator()
-	dump.parse_images(os.path.realpath(opts['in']), opts['pid'])
-	dump.write_coredumps(os.path.realpath(opts['out']), opts['pid'])
+	dump = criu_coredump.core_generator(os.path.realpath(opts['in']))
+	dump.write(os.path.realpath(opts['out']), opts['pid'])
 
 if __name__ == '__main__':
 	main()

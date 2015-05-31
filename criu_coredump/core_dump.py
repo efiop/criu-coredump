@@ -148,11 +148,9 @@ class core_generator:
 			return img["entries"]
 
 
-	def parse_images(self, imgs_dir, pid = None):
+	def __init__(self, imgs_dir):
 		"""
-		Parse criu images stored in directory imgs_dir to fill core dump.
-		Specify pid if you don't want to generate core dump for each process
-		in a tree.
+		Parse criu images stored in directory imgs_dir to fill core dumps.
 		"""
 		self._imgs_dir	= imgs_dir
 		pstree		= self._img_open_and_strip("pstree")
@@ -173,7 +171,7 @@ class core_generator:
 			self.coredumps[pid] = self._gen_coredump(pid)
 
 
-	def write_coredumps(self, coredumps_dir, pid = None):
+	def write(self, coredumps_dir, pid = None):
 		"""
 		Write core dumpt to cores_dir directory. Specify pid to choose
 		core dump of only one process.
