@@ -1,3 +1,5 @@
+**As of Jun 2016, criu-coredump is already merged into official criu repository, so this repo is getting abandoned.**
+
 # criu-coredump
 Generate valid core dump from CRIU images.
 
